@@ -125,6 +125,20 @@ public class UsesType<P> extends TreeVisitor<Tree, P> {
                     }
                 }
             }
+
+            // Fallback for when type attribution is missing (e.g., package-info.java
+            // with fully-qualified annotations where the type isn't on the classpath)
+            if (fullyQualifiedType != null) {
+                J.Package pkg = c.getPackageDeclaration();
+                if (pkg != null) {
+                    for (J.Annotation annotation : pkg.getAnnotations()) {
+                        if (annotation.getAnnotationType() instanceof J.FieldAccess &&
+                                ((J.FieldAccess) annotation.getAnnotationType()).isFullyQualifiedClassReference(fullyQualifiedType)) {
+                            return SearchResult.found(c);
+                        }
+                    }
+                }
+            }
         } else if (tree instanceof SourceFileWithReferences) {
             SourceFileWithReferences sourceFile = (SourceFileWithReferences) tree;
             SourceFileWithReferences.References references = sourceFile.getReferences();

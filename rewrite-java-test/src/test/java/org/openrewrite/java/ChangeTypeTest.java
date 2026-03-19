@@ -27,6 +27,7 @@ import org.openrewrite.java.tree.TypeUtils;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
 import org.openrewrite.test.SourceSpec;
+import org.openrewrite.test.TypeValidation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -2508,6 +2509,80 @@ class ChangeTypeTest implements RewriteTest {
                 .extracting(NameTree::getType)
                 .matches(type -> TypeUtils.isAssignableTo("com.demo.After", type), "Assignable to updated type")
             )
+          )
+        );
+    }
+
+    @Test
+    void changeFullyQualifiedAnnotationInPackageInfo() {
+        rewriteRun(
+          spec -> spec.recipe(new ChangeType(
+              "a.A1",
+              "a.A2", true)),
+          java(a1),
+          java(a2, SourceSpec::skip),
+          java(
+            """
+              @a.A1
+              package com.example;
+              """,
+            """
+              @A2
+              package com.example;
+
+              import a.A2;
+              """,
+            spec -> spec.path("com/example/package-info.java")
+          )
+        );
+    }
+
+    @Test
+    void changeFullyQualifiedAnnotationInPackageInfoMissingTypes() {
+        rewriteRun(
+          spec -> spec.recipe(new ChangeType(
+              "javax.xml.bind.annotation.XmlSchema",
+              "jakarta.xml.bind.annotation.XmlSchema", true))
+              .parser(JavaParser.fromJavaVersion())
+              .typeValidationOptions(TypeValidation.none()),
+          java(
+            """
+              @javax.xml.bind.annotation.XmlSchema(namespace = "http://example.com")
+              package com.example;
+              """,
+            """
+              @XmlSchema(namespace = "http://example.com")
+              package com.example;
+
+              import jakarta.xml.bind.annotation.XmlSchema;
+              """,
+            spec -> spec.path("com/example/package-info.java")
+          )
+        );
+    }
+
+    @Test
+    void changeImportedAnnotationInPackageInfo() {
+        rewriteRun(
+          spec -> spec.recipe(new ChangeType(
+              "a.A1",
+              "a.A2", true)),
+          java(a1),
+          java(a2, SourceSpec::skip),
+          java(
+            """
+              @A1
+              package com.example;
+
+              import a.A1;
+              """,
+            """
+              @A2
+              package com.example;
+
+              import a.A2;
+              """,
+            spec -> spec.path("com/example/package-info.java")
           )
         );
     }
